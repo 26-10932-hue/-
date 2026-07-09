@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>같은 진단, 다른 설명 — 비교 설문</title>
+<style>
+  :root{
+    --bg: #f6f4ef;
+    --ink: #1f2b2a;
+    --chart-navy: #223b4d;
+    --chart-teal: #3f7d78;
+    --chart-amber: #c17a3d;
+    --line: #d9d3c4;
+    --card: #ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family: 'Noto Serif KR', 'Georgia', serif;
+    line-height:1.6;
+  }
+  .app{ max-width:760px; margin:0 auto; padding:32px 20px 80px; }
+  .eyebrow{
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--chart-teal); font-weight:600; margin-bottom:6px;
+  }
+  h1{ font-size:26px; margin:0 0 4px; font-weight:700; }
+  .sub{ font-family:-apple-system, sans-serif; font-size:14px; color:#6b6f6a; margin-bottom:24px; }
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:4px;
+    padding:22px; margin-bottom:18px;
+  }
+  .nav-choice{ display:flex; gap:12px; margin-bottom:24px; }
+  .nav-btn{
+    flex:1; padding:16px; border:1px solid var(--line); background:var(--card);
+    border-radius:4px; cursor:pointer; font-family:-apple-system,sans-serif;
+    font-size:15px; font-weight:600; color:var(--ink); text-align:center;
+  }
+  .nav-btn:hover{ border-color:var(--chart-teal); }
+  .passage-card{
+    border:1px solid var(--line); border-radius:4px; padding:16px 18px; margin-bottom:14px;
+    background:#faf8f2; cursor:pointer; transition: border-color .15s, box-shadow .15s;
+  }
+  .passage-card.chosen{ border-color:var(--chart-navy); box-shadow:0 0 0 2px var(--chart-navy) inset; background:#eef2f1; }
+  .passage-label{ font-family:-apple-system,sans-serif; font-weight:700; font-size:13px; color:var(--chart-teal); margin-bottom:8px; }
+  .passage-text{ font-size:16px; margin-bottom:12px; }
+  .rate-row{ display:flex; align-items:center; gap:8px; }
+  .rate-caption{ font-family:-apple-system,sans-serif; font-size:12px; color:#8a8d87; }
+  .scale{ display:flex; gap:6px; flex:1; }
+  .scale-btn{
+    flex:1; padding:8px 0; text-align:center; border:1px solid var(--line);
+    border-radius:4px; cursor:pointer; font-family:-apple-system,sans-serif; background:#fff; font-size:13px;
+  }
+  .scale-btn.selected{ background:var(--chart-teal); color:#fff; border-color:var(--chart-teal); }
+  .pick-badge{
+    display:inline-block; margin-top:10px; font-family:-apple-system,sans-serif; font-size:12px;
+    padding:4px 10px; border-radius:12px; background:var(--chart-navy); color:#fff;
+  }
+  .qlabel{ font-family:-apple-system,sans-serif; font-weight:600; font-size:14px; margin-bottom:10px; }
+  textarea{
+    width:100%; min-height:70px; border:1px solid var(--line); border-radius:4px;
+    padding:10px; font-family:-apple-system,sans-serif; font-size:14px; resize:vertical;
+  }
+  .primary-btn{
+    width:100%; padding:14px; background:var(--chart-navy); color:#fff; border:none;
+    border-radius:4px; font-family:-apple-system,sans-serif; font-weight:600; font-size:15px;
+    cursor:pointer; margin-top:6px;
+  }
+  .primary-btn:disabled{ background:#b7bcb9; cursor:not-allowed; }
+  .muted{ font-family:-apple-system,sans-serif; font-size:13px; color:#8a8d87; }
+  .done-mark{ text-align:center; padding:40px 0; }
+  .done-mark .big{ font-size:40px; margin-bottom:12px; }
+  table{ width:100%; border-collapse:collapse; font-family:-apple-system,sans-serif; font-size:13px; }
+  th,td{ padding:8px 6px; border-bottom:1px solid var(--line); text-align:left; }
+  th{ color:#6b6f6a; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.04em; }
+  .bar-row{ margin-bottom:14px; }
+  .bar-label{ font-family:-apple-system,sans-serif; font-size:13px; margin-bottom:4px; display:flex; justify-content:space-between; }
+  .bar-track{ background:#eee9dc; border-radius:3px; height:14px; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:3px; }
+  .group-teal .bar-fill{ background:var(--chart-teal); }
+  .group-navy .bar-fill{ background:var(--chart-navy); }
+  .group-amber .bar-fill{ background:var(--chart-amber); }
+  .reset-link{ font-family:-apple-system,sans-serif; font-size:12px; color:#a3a7a0; text-align:center; margin-top:24px; cursor:pointer; text-decoration:underline; }
+  .n-badge{ font-family:-apple-system,sans-serif; font-size:11px; background:#eef2f1; color:var(--chart-navy); padding:2px 8px; border-radius:10px; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+// The three explanation styles for the SAME diagnosis, shown together.
+const GROUPS = {
+  jargon: {
+    key:'jargon', name:'전문어 중심', color:'group-navy',
+    passage: '급성 심근경색으로 인해 심근 허혈이 발생하였고, 심근효소 수치가 상승하였습니다. 관상동맥 조영술 결과 협착이 확인되어 스텐트 삽입술이 필요합니다.'
+  },
+  mixed: {
+    key:'mixed', name:'전문어 + 쉬운 설명 병행', color:'group-teal',
+    passage: '급성 심근경색, 즉 심장으로 가는 혈관이 갑자기 막혀서 심장 근육에 피가 제대로 공급되지 않는 상태입니다. 검사 결과 혈관이 좁아진 협착이 확인되어, 좁아진 혈관을 넓혀주는 스텐트 삽입술, 즉 작은 그물망 관을 넣어 혈관을 넓히는 시술이 필요합니다.'
+  },
+  simple: {
+    key:'simple', name:'쉬운 표현 중심', color:'group-amber',
+    passage: '심장으로 가는 혈관이 막혀서 심장에 피가 잘 통하지 않는 상태예요. 그래서 혈관을 넓히는 작은 관을 넣는 시술을 받아야 해요.'
+  }
+};
+const GROUP_ORDER = ['jargon','mixed','simple'];
+
+// randomize which passage appears in which position each session, and
+// label them neutrally (설명 A/B/C) so the choice isn't biased by knowing which is "simple".
+function shuffledOrder(){
+  const arr = [...GROUP_ORDER];
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+  return arr;
+}
+const LETTERS = ['A','B','C'];
+
+let state = { screen:'home', order:null, ratings:{}, choice:null, note:'', submitting:false };
+let results = null;
+
+function render(){
+  const app = document.getElementById('app');
+
+  if(state.screen === 'home'){
+    app.innerHTML = `
+      <div class="eyebrow">공통국어Ⅰ 탐구 · 의료 의사소통</div>
+      <h1>같은 진단, 다른 설명</h1>
+      <div class="sub">같은 진단 내용을 세 가지 방식으로 설명한 글을 한 번에 보여드려요. 각각을 읽고 어떤 설명이 가장 이해하기 쉬웠는지 골라주세요.</div>
+      <div class="card">
+        <div class="qlabel" style="margin-bottom:16px;">무엇을 하시겠어요?</div>
+        <div class="nav-choice">
+          <button class="nav-btn" id="btn-survey">설문 참여하기</button>
+          <button class="nav-btn" id="btn-results">결과 보기</button>
+        </div>
+        <div class="muted">설명은 A, B, C로만 표시되고 순서는 매번 무작위로 섞여요. 어떤 방식인지 미리 알려드리지 않아요.</div>
+      </div>
+    `;
+    document.getElementById('btn-survey').onclick = () => {
+      state = { screen:'compare', order: shuffledOrder(), ratings:{}, choice:null, note:'', submitting:false };
+      render();
+    };
+    document.getElementById('btn-results').onclick = async () => {
+      state.screen = 'loading-results'; render();
+      await loadResults();
+      state.screen = 'results'; render();
+    };
+    return;
+  }
+
+  if(state.screen === 'compare'){
+    app.innerHTML = `
+      <div class="eyebrow">이해 비교</div>
+      <h1>세 가지 설명을 읽어보세요</h1>
+      <div class="sub">같은 진단을 설명한 글 세 편이에요. 각 글을 읽고 이해하기 쉬웠던 정도를 1~5점으로 평가해주세요.</div>
+      ${state.order.map((g, idx) => {
+        const meta = GROUPS[g];
+        const r = state.ratings[g];
+        return `
+        <div class="card">
+          <div class="passage-label">설명 ${LETTERS[idx]}</div>
+          <div class="passage-text">${meta.passage}</div>
+          <div class="rate-row">
+            <span class="rate-caption">이해하기 어려움</span>
+            <div class="scale" data-g="${g}">
+              ${[1,2,3,4,5].map(n => `<div class="scale-btn ${r===n?'selected':''}" data-g="${g}" data-n="${n}">${n}</div>`).join('')}
+            </div>
+            <span class="rate-caption">이해하기 쉬움</span>
+          </div>
+        </div>`;
+      }).join('')}
+      <button class="primary-btn" id="btn-next" ${allRated()?'':'disabled'}>다음</button>
+    `;
+    state.order.forEach(g => {
+      [1,2,3,4,5].forEach(n => {
+        const el = document.querySelector(`.scale-btn[data-g="${g}"][data-n="${n}"]`);
+        if(el) el.onclick = () => { state.ratings[g] = n; render(); };
+      });
+    });
+    const nextBtn = document.getElementById('btn-next');
+    if(nextBtn) nextBtn.onclick = () => { if(allRated()){ state.screen='choose'; render(); } };
+    return;
+  }
+
+  if(state.screen === 'choose'){
+    app.innerHTML = `
+      <div class="eyebrow">최종 선택</div>
+      <h1>가장 이해하기 쉬웠던 설명은?</h1>
+      <div class="sub">세 편 중 하나만 골라주세요.</div>
+      ${state.order.map((g, idx) => {
+        const meta = GROUPS[g];
+        const chosen = state.choice === g;
+        return `
+        <div class="passage-card ${chosen?'chosen':''}" data-g="${g}">
+          <div class="passage-label">설명 ${LETTERS[idx]}</div>
+          <div class="passage-text">${meta.passage}</div>
+          ${chosen ? '<span class="pick-badge">선택함</span>' : ''}
+        </div>`;
+      }).join('')}
+      <div class="card">
+        <div class="qlabel">왜 그렇게 느꼈는지 한 줄로 적어주세요 (선택)</div>
+        <textarea id="note" placeholder="예: 어려운 단어 없이 바로 이해가 됐어요">${state.note}</textarea>
+        <button class="primary-btn" id="btn-submit" ${state.choice?'':'disabled'}>${state.submitting?'제출 중...':'제출하기'}</button>
+      </div>
+    `;
+    state.order.forEach(g => {
+      const el = document.querySelector(`.passage-card[data-g="${g}"]`);
+      if(el) el.onclick = () => { state.choice = g; render(); };
+    });
+    document.getElementById('note').oninput = (e) => { state.note = e.target.value; };
+    const submitBtn = document.getElementById('btn-submit');
+    if(submitBtn) submitBtn.onclick = submit;
+    return;
+  }
+
+  if(state.screen === 'done'){
+    app.innerHTML = `
+      <div class="card done-mark">
+        <div class="big">✓</div>
+        <h1 style="text-align:center;">제출되었습니다</h1>
+        <div class="sub" style="text-align:center;">참여해주셔서 감사합니다.</div>
+        <button class="primary-btn" id="btn-home">처음으로</button>
+      </div>
+    `;
+    document.getElementById('btn-home').onclick = () => { state = { screen:'home' }; render(); };
+    return;
+  }
+
+  if(state.screen === 'loading-results'){
+    app.innerHTML = `<div class="card"><div class="muted">결과를 불러오는 중...</div></div>`;
+    return;
+  }
+
+  if(state.screen === 'results'){
+    renderResults(app);
+    return;
+  }
+}
+
+function allRated(){
+  return state.order.every(g => state.ratings[g] != null);
+}
+
+async function submit(){
+  if(state.submitting) return;
+  state.submitting = true; render();
+  const record = {
+    ratings: state.ratings,   // { jargon: n, mixed: n, simple: n }
+    choice: state.choice,     // which style was picked as easiest
+    note: state.note || '',
+    ts: Date.now()
+  };
+  const key = 'compare_response:' + Date.now() + '-' + Math.floor(Math.random()*100000);
+  try{
+    await window.storage.set(key, JSON.stringify(record), true);
+  }catch(e){
+    console.error('저장 실패', e);
+  }
+  state.screen = 'done';
+  state.submitting = false;
+  render();
+}
+
+async function loadResults(){
+  const summary = {};
+  GROUP_ORDER.forEach(g => summary[g] = { n:0, ratingSum:0, chosenCount:0 });
+  let totalResponses = 0;
+  try{
+    const listRes = await window.storage.list('compare_response:', true);
+    const keys = (listRes && listRes.keys) || [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, true);
+        if(!r) continue;
+        const rec = JSON.parse(r.value);
+        totalResponses += 1;
+        GROUP_ORDER.forEach(g => {
+          if(rec.ratings && rec.ratings[g] != null){
+            summary[g].n += 1;
+            summary[g].ratingSum += rec.ratings[g];
+          }
+        });
+        if(rec.choice && summary[rec.choice]) summary[rec.choice].chosenCount += 1;
+      }catch(e){ /* skip bad record */ }
+    }
+  }catch(e){
+    console.error('결과 불러오기 실패', e);
+  }
+  results = { summary, totalResponses };
+}
+
+function renderResults(app){
+  const { summary, totalResponses } = results;
+  app.innerHTML = `
+    <div class="eyebrow">전체 응답 <span class="n-badge">${totalResponses}명</span></div>
+    <h1>어떤 설명이 가장 쉬웠을까</h1>
+    <div class="sub">각 설명에 대한 평균 이해 용이성 점수와, "가장 쉬웠다"고 선택된 비율입니다.</div>
+    <div class="card">
+      ${GROUP_ORDER.map(g => {
+        const s = summary[g];
+        const meta = GROUPS[g];
+        const avgRating = s.n > 0 ? (s.ratingSum / s.n).toFixed(1) : '-';
+        const chosenPct = totalResponses > 0 ? Math.round(s.chosenCount / totalResponses * 100) : 0;
+        return `
+          <div class="bar-row">
+            <div class="bar-label"><span>${meta.name}</span><span>평균 ${avgRating}점 (5점 만점)</span></div>
+            <div class="bar-track ${meta.color}"><div class="bar-fill" style="width:${s.n>0 ? (s.ratingSum/s.n/5*100) : 0}%"></div></div>
+          </div>
+          <div class="bar-row">
+            <div class="bar-label"><span class="muted">　　"가장 쉬웠다" 선택 비율</span><span>${chosenPct}% (${s.chosenCount}명)</span></div>
+            <div class="bar-track ${meta.color}"><div class="bar-fill" style="width:${chosenPct}%"></div></div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    <div class="card">
+      <div class="qlabel" style="margin-bottom:12px;">그룹별 상세</div>
+      <table>
+        <tr><th>설명 방식</th><th>평가 수</th><th>평균 이해 용이성</th><th>최종 선택 수</th><th>선택 비율</th></tr>
+        ${GROUP_ORDER.map(g => {
+          const s = summary[g];
+          const chosenPct = totalResponses > 0 ? Math.round(s.chosenCount / totalResponses * 100) : 0;
+          return `<tr>
+            <td>${GROUPS[g].name}</td>
+            <td>${s.n}</td>
+            <td>${s.n>0 ? (s.ratingSum/s.n).toFixed(1) : '-'}</td>
+            <td>${s.chosenCount}</td>
+            <td>${chosenPct}%</td>
+          </tr>`;
+        }).join('')}
+      </table>
+    </div>
+    <button class="primary-btn" id="btn-refresh">새로고침</button>
+    <button class="primary-btn" id="btn-home" style="background:transparent;color:var(--chart-navy);border:1px solid var(--line);margin-top:8px;">처음으로</button>
+    <div class="reset-link" id="btn-reset">이 기기에서 테스트 데이터 초기화 (전체 응답 삭제)</div>
+  `;
+  document.getElementById('btn-refresh').onclick = async () => {
+    state.screen = 'loading-results'; render();
+    await loadResults();
+    state.screen = 'results'; render();
+  };
+  document.getElementById('btn-home').onclick = () => { state = { screen:'home' }; render(); };
+  document.getElementById('btn-reset').onclick = async () => {
+    if(!confirm('정말 모든 참여자의 응답을 삭제할까요? 되돌릴 수 없어요.')) return;
+    try{
+      const listRes = await window.storage.list('compare_response:', true);
+      const keys = (listRes && listRes.keys) || [];
+      for(const k of keys){ await window.storage.delete(k, true); }
+    }catch(e){ console.error(e); }
+    state.screen = 'loading-results'; render();
+    await loadResults();
+    state.screen = 'results'; render();
+  };
+}
+
+render();
+</script>
+</body>
+</html>
